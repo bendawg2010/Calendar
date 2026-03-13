@@ -7,6 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         :root {
             --bg: #0f111a;
@@ -163,6 +164,17 @@
 
         .btn-primary:hover {
             background: var(--accent-hover);
+        }
+
+        .btn-excel {
+            background: #166534;
+            border-color: #22c55e;
+            color: #22c55e;
+        }
+
+        .btn-excel:hover {
+            background: #15803d;
+            border-color: #4ade80;
         }
 
         .btn svg {
@@ -505,6 +517,10 @@
                     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2 7h12M5 1v4M11 1v4"/></svg>
                     Today
                 </button>
+                <button class="btn btn-excel" onclick="exportExcel()">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 12h8M8 2v7M5 6l3 3 3-3"/></svg>
+                    <span>Export Excel</span>
+                </button>
                 <button class="btn btn-primary" id="exportBtn" onclick="exportPDF()">
                     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 12h8M8 2v7M5 6l3 3 3-3"/></svg>
                     <span>Export PDF</span>
@@ -736,6 +752,45 @@
                 btn.classList.remove('exporting');
                 btn.querySelector('span').textContent = 'Export PDF';
             });
+        }
+
+        // ── Excel Export ─────────────────────────────────────
+        function exportExcel() {
+            const days = getDaysInMonth(currentYear, currentMonth);
+            const rows = [];
+
+            // Header row
+            const header = ['Staff'];
+            for (let d = 1; d <= days; d++) {
+                const date = new Date(currentYear, currentMonth, d);
+                header.push(`${dayNames[date.getDay()]} ${d}`);
+            }
+            rows.push(header);
+
+            // Data rows
+            staff.forEach(person => {
+                const row = [person.name];
+                for (let d = 1; d <= days; d++) {
+                    const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                    const key = `${person.id}-${dateStr}`;
+                    const val = scheduleData[key] || '';
+                    const shift = shiftTypes.find(s => s.code === val);
+                    row.push(shift && shift.code ? `${shift.code} - ${shift.label}` : '');
+                }
+                rows.push(row);
+            });
+
+            const ws = XLSX.utils.aoa_to_sheet(rows);
+
+            // Column widths
+            ws['!cols'] = [{ wch: 22 }];
+            for (let d = 1; d <= days; d++) {
+                ws['!cols'].push({ wch: 18 });
+            }
+
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, `${monthNames[currentMonth]} ${currentYear}`);
+            XLSX.writeFile(wb, `Schedule_${monthNames[currentMonth]}_${currentYear}.xlsx`);
         }
 
         // ── Init ─────────────────────────────────────────────
