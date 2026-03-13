@@ -301,6 +301,24 @@
             display: inline-block;
         }
 
+        thead th.sortable {
+            cursor: pointer;
+            user-select: none;
+        }
+
+        thead th.sortable:hover {
+            background: rgba(99, 102, 241, 0.18);
+        }
+
+        thead th.sorted {
+            background: rgba(99, 102, 241, 0.22);
+        }
+
+        thead th.sorted::after {
+            content: ' \25BC';
+            font-size: 8px;
+        }
+
         /* Body rows */
         tbody tr {
             border-bottom: 1px solid var(--border);
@@ -547,6 +565,10 @@
         let currentYear = new Date().getFullYear();
         let currentMonth = new Date().getMonth();
         let scheduleData = JSON.parse(localStorage.getItem('scheduleData') || '{}');
+        let sortedDay = null; // which day column is currently sorted
+
+        // Sort priority: green first, yellow second, red third, then others, unset last
+        const sortPriority = { 'WO': 0, 'PC': 1, 'AL': 2, 'DO': 3, 'OC': 4, 'NCR': 5, 'ICU': 6, 'MISC': 7, '': 99 };
 
         // ── Status Bar ───────────────────────────────────────
         function buildStatusBar() {
@@ -578,14 +600,26 @@
                 const dayName = dayNames[date.getDay()];
                 const isWeekend = date.getDay() === 0 || date.getDay() === 6;
                 const isToday = date.toDateString() === today.toDateString();
-                headHTML += `<th class="${isWeekend ? 'weekend' : ''} ${isToday ? 'today-col' : ''}">${dayName}<span class="day-num">${d}</span></th>`;
+                const isSorted = sortedDay === d;
+                headHTML += `<th class="sortable ${isWeekend ? 'weekend' : ''} ${isToday ? 'today-col' : ''} ${isSorted ? 'sorted' : ''}" onclick="sortByDay(${d})">${dayName}<span class="day-num">${d}</span></th>`;
             }
             headHTML += '</tr>';
             document.getElementById('calendarHead').innerHTML = headHTML;
 
+            // Sort staff if a day is selected
+            let sortedStaff = [...staff];
+            if (sortedDay !== null) {
+                const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(sortedDay).padStart(2,'0')}`;
+                sortedStaff.sort((a, b) => {
+                    const aShift = scheduleData[`${a.id}-${dateStr}`] || '';
+                    const bShift = scheduleData[`${b.id}-${dateStr}`] || '';
+                    return (sortPriority[aShift] ?? 50) - (sortPriority[bShift] ?? 50);
+                });
+            }
+
             // Body
             let bodyHTML = '';
-            staff.forEach(person => {
+            sortedStaff.forEach(person => {
                 bodyHTML += '<tr>';
                 bodyHTML += `<td>
                     <div class="name-cell">
@@ -633,6 +667,15 @@
             scheduleData[key] = val;
             localStorage.setItem('scheduleData', JSON.stringify(scheduleData));
 
+            // If sorted day is active and this cell is on that day, re-sort
+            if (sortedDay !== null) {
+                const dayPart = parseInt(key.split('-').pop(), 10);
+                if (dayPart === sortedDay) {
+                    buildCalendar();
+                    return;
+                }
+            }
+
             const shift = shiftTypes.find(s => s.code === val) || shiftTypes[0];
             el.className = 'shift-select ' + shift.cssClass;
             const pdfCell = el.nextElementSibling;
@@ -641,10 +684,20 @@
             pdfCell.textContent = val || '-';
         }
 
+        function sortByDay(day) {
+            if (sortedDay === day) {
+                sortedDay = null; // click again to unsort
+            } else {
+                sortedDay = day;
+            }
+            buildCalendar();
+        }
+
         function changeMonth(delta) {
             currentMonth += delta;
             if (currentMonth > 11) { currentMonth = 0; currentYear++; }
             if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+            sortedDay = null;
             buildCalendar();
         }
 
