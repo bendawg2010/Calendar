@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Staff Schedule Calendar</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f2f5;
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            background: #fff;
+            padding: 15px 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 22px;
+            color: #333;
+        }
+
+        .month-nav {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .month-nav button {
+            padding: 8px 16px;
+            border: none;
+            background: #4a90d9;
+            color: #fff;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .month-nav button:hover {
+            background: #357abd;
+        }
+
+        .month-nav span {
+            font-size: 18px;
+            font-weight: 600;
+            min-width: 180px;
+            text-align: center;
+        }
+
+        .btn-export {
+            padding: 10px 20px;
+            border: none;
+            background: #e74c3c;
+            color: #fff;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .btn-export:hover {
+            background: #c0392b;
+        }
+
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 20px;
+            background: #fff;
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .legend-color {
+            width: 18px;
+            height: 18px;
+            border-radius: 3px;
+            border: 1px solid rgba(0,0,0,0.15);
+        }
+
+        .calendar-container {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 900px;
+        }
+
+        thead th {
+            background: #4a90d9;
+            color: #fff;
+            padding: 10px 4px;
+            font-size: 13px;
+            font-weight: 600;
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        thead th:first-child {
+            text-align: left;
+            padding-left: 12px;
+            min-width: 160px;
+            position: sticky;
+            left: 0;
+            z-index: 11;
+        }
+
+        thead th.weekend {
+            background: #3a7bc8;
+        }
+
+        tbody tr {
+            border-bottom: 1px solid #e8e8e8;
+        }
+
+        tbody tr:hover {
+            background: #f8f9fa;
+        }
+
+        tbody tr:nth-child(even) {
+            background: #fafbfc;
+        }
+
+        tbody tr:nth-child(even):hover {
+            background: #f0f1f2;
+        }
+
+        tbody td {
+            padding: 4px 2px;
+            text-align: center;
+            min-width: 38px;
+            vertical-align: middle;
+        }
+
+        tbody td:first-child {
+            text-align: left;
+            padding-left: 12px;
+            font-weight: 600;
+            font-size: 13px;
+            color: #333;
+            position: sticky;
+            left: 0;
+            background: inherit;
+            z-index: 5;
+        }
+
+        .name-cell {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .initials-badge {
+            display: inline-block;
+            width: 28px;
+            height: 28px;
+            line-height: 28px;
+            text-align: center;
+            border-radius: 50%;
+            font-size: 11px;
+            font-weight: 700;
+            color: #fff;
+            flex-shrink: 0;
+        }
+
+        .name-text {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Dropdown select in each cell */
+        .shift-select {
+            width: 100%;
+            min-width: 34px;
+            max-width: 56px;
+            padding: 3px 1px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-position: right 2px center;
+            background-size: 8px;
+        }
+
+        .shift-select:focus {
+            outline: 2px solid #4a90d9;
+            outline-offset: -1px;
+        }
+
+        /* Shift colors */
+        .shift-none { background: #fff; color: #999; }
+        .shift-al { background: #e74c3c; color: #fff; }
+        .shift-oc { background: #9b59b6; color: #fff; }
+        .shift-do { background: #e67e22; color: #fff; }
+        .shift-ncr { background: #3498db; color: #fff; }
+        .shift-wo { background: #27ae60; color: #fff; }
+        .shift-pc { background: #f1c40f; color: #333; }
+        .shift-icu { background: #e91e8e; color: #fff; }
+        .shift-misc { background: #85c1e9; color: #333; }
+
+        /* For PDF: show text instead of dropdowns */
+        .pdf-cell {
+            display: none;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 4px 2px;
+            border-radius: 3px;
+            min-width: 30px;
+        }
+
+        .today-col {
+            background: rgba(74, 144, 217, 0.08);
+        }
+
+        @media print {
+            .shift-select { display: none !important; }
+            .pdf-cell { display: inline-block !important; }
+            .header { box-shadow: none; }
+            .btn-export { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="header">
+            <h1>Staff Schedule Calendar</h1>
+            <div class="month-nav">
+                <button onclick="changeMonth(-1)">&larr; Prev</button>
+                <span id="monthLabel"></span>
+                <button onclick="changeMonth(1)">Next &rarr;</button>
+            </div>
+            <button class="btn-export" onclick="exportPDF()">Export PDF</button>
+        </div>
+
+        <div class="legend" id="legend"></div>
+
+        <div class="calendar-container">
+            <table id="calendarTable">
+                <thead id="calendarHead"></thead>
+                <tbody id="calendarBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // ── Data ──────────────────────────────────────────────
+        const staff = [
+            { id: 'JB', name: 'Jeff Burnette',       color: '#e74c3c' },
+            { id: 'KP', name: 'Kim Payne',           color: '#9b59b6' },
+            { id: 'GB', name: 'Gavin Broderick',     color: '#e67e22' },
+            { id: 'AM', name: 'Angel Mahan',         color: '#3498db' },
+            { id: 'W',  name: 'Will Cramer',         color: '#27ae60' },
+            { id: 'EN', name: 'Emily Nelson',        color: '#f1c40f' },
+            { id: 'DK', name: 'Don Kilpatrick',      color: '#e91e8e' },
+            { id: 'RC', name: 'Robert Christopher',  color: '#85c1e9' },
+            { id: 'SH', name: 'Samantha Hansen',     color: '#16a085' },
+            { id: 'JT', name: 'Jenny Thompson',      color: '#27ae60' },
+            { id: 'TS', name: 'Tomas Szabo',         color: '#8e44ad' }
+        ];
+
+        const shiftTypes = [
+            { code: '',     label: '--',              cssClass: 'shift-none', color: '#ffffff', textColor: '#999' },
+            { code: 'AL',   label: 'Annual Leave',    cssClass: 'shift-al',   color: '#e74c3c', textColor: '#fff' },
+            { code: 'OC',   label: 'On Call',         cssClass: 'shift-oc',   color: '#9b59b6', textColor: '#fff' },
+            { code: 'DO',   label: 'Day Off',         cssClass: 'shift-do',   color: '#e67e22', textColor: '#fff' },
+            { code: 'NCR',  label: 'No Call Request', cssClass: 'shift-ncr',  color: '#3498db', textColor: '#fff' },
+            { code: 'WO',   label: 'Working',         cssClass: 'shift-wo',   color: '#27ae60', textColor: '#fff' },
+            { code: 'PC',   label: 'Post Call',       cssClass: 'shift-pc',   color: '#f1c40f', textColor: '#333' },
+            { code: 'ICU',  label: 'ICU',             cssClass: 'shift-icu',  color: '#e91e8e', textColor: '#fff' },
+            { code: 'MISC', label: 'Misc',            cssClass: 'shift-misc', color: '#85c1e9', textColor: '#333' }
+        ];
+
+        const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const monthNames = [
+            'January','February','March','April','May','June',
+            'July','August','September','October','November','December'
+        ];
+
+        // ── State ─────────────────────────────────────────────
+        let currentYear = new Date().getFullYear();
+        let currentMonth = new Date().getMonth();
+        // scheduleData[key] = shift code, key = "staffId-YYYY-MM-DD"
+        let scheduleData = JSON.parse(localStorage.getItem('scheduleData') || '{}');
+
+        // ── Legend ────────────────────────────────────────────
+        function buildLegend() {
+            const legend = document.getElementById('legend');
+            legend.innerHTML = shiftTypes.filter(s => s.code).map(s =>
+                `<div class="legend-item">
+                    <div class="legend-color" style="background:${s.color}"></div>
+                    <span>${s.code} - ${s.label}</span>
+                </div>`
+            ).join('');
+        }
+
+        // ── Calendar ─────────────────────────────────────────
+        function getDaysInMonth(year, month) {
+            return new Date(year, month + 1, 0).getDate();
+        }
+
+        function buildCalendar() {
+            const days = getDaysInMonth(currentYear, currentMonth);
+            const today = new Date();
+
+            // Header
+            document.getElementById('monthLabel').textContent =
+                `${monthNames[currentMonth]} ${currentYear}`;
+
+            let headHTML = '<tr><th>Staff</th>';
+            for (let d = 1; d <= days; d++) {
+                const date = new Date(currentYear, currentMonth, d);
+                const dayName = dayNames[date.getDay()];
+                const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+                const isToday = date.toDateString() === today.toDateString();
+                headHTML += `<th class="${isWeekend ? 'weekend' : ''} ${isToday ? 'today-col' : ''}">${dayName}<br>${d}</th>`;
+            }
+            headHTML += '</tr>';
+            document.getElementById('calendarHead').innerHTML = headHTML;
+
+            // Body
+            let bodyHTML = '';
+            staff.forEach(person => {
+                bodyHTML += '<tr>';
+                bodyHTML += `<td>
+                    <div class="name-cell">
+                        <span class="initials-badge" style="background:${person.color}">${person.id}</span>
+                        <span class="name-text">${person.name}</span>
+                    </div>
+                </td>`;
+
+                for (let d = 1; d <= days; d++) {
+                    const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                    const key = `${person.id}-${dateStr}`;
+                    const savedVal = scheduleData[key] || '';
+                    const date = new Date(currentYear, currentMonth, d);
+                    const isToday = date.toDateString() === today.toDateString();
+
+                    const shift = shiftTypes.find(s => s.code === savedVal) || shiftTypes[0];
+
+                    let options = shiftTypes.map(s =>
+                        `<option value="${s.code}" ${s.code === savedVal ? 'selected' : ''}>${s.code || '--'}</option>`
+                    ).join('');
+
+                    bodyHTML += `<td class="${isToday ? 'today-col' : ''}">
+                        <select class="shift-select ${shift.cssClass}"
+                                data-key="${key}"
+                                onchange="onShiftChange(this)">
+                            ${options}
+                        </select>
+                        <span class="pdf-cell" style="background:${shift.color};color:${shift.textColor}">${savedVal || '-'}</span>
+                    </td>`;
+                }
+                bodyHTML += '</tr>';
+            });
+            document.getElementById('calendarBody').innerHTML = bodyHTML;
+        }
+
+        function onShiftChange(el) {
+            const key = el.dataset.key;
+            const val = el.value;
+            scheduleData[key] = val;
+            localStorage.setItem('scheduleData', JSON.stringify(scheduleData));
+
+            const shift = shiftTypes.find(s => s.code === val) || shiftTypes[0];
+            // Update dropdown styling
+            el.className = 'shift-select ' + shift.cssClass;
+            // Update the PDF-cell sibling
+            const pdfCell = el.nextElementSibling;
+            pdfCell.style.background = shift.color;
+            pdfCell.style.color = shift.textColor;
+            pdfCell.textContent = val || '-';
+        }
+
+        function changeMonth(delta) {
+            currentMonth += delta;
+            if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+            if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+            buildCalendar();
+        }
+
+        // ── PDF Export ───────────────────────────────────────
+        function exportPDF() {
+            // Swap dropdowns to static text for PDF
+            document.querySelectorAll('.shift-select').forEach(el => el.style.display = 'none');
+            document.querySelectorAll('.pdf-cell').forEach(el => el.style.display = 'inline-block');
+            document.querySelector('.btn-export').style.display = 'none';
+            document.querySelectorAll('.month-nav button').forEach(b => b.style.display = 'none');
+
+            const element = document.getElementById('app');
+            const opt = {
+                margin:       [5, 5, 5, 5],
+                filename:     `Schedule_${monthNames[currentMonth]}_${currentYear}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, scrollX: 0, scrollY: 0, useCORS: true },
+                jsPDF:        { unit: 'mm', format: 'a3', orientation: 'landscape' }
+            };
+
+            html2pdf().set(opt).from(element).save().then(() => {
+                // Restore dropdowns
+                document.querySelectorAll('.shift-select').forEach(el => el.style.display = '');
+                document.querySelectorAll('.pdf-cell').forEach(el => el.style.display = 'none');
+                document.querySelector('.btn-export').style.display = '';
+                document.querySelectorAll('.month-nav button').forEach(b => b.style.display = '');
+            });
+        }
+
+        // ── Init ─────────────────────────────────────────────
+        buildLegend();
+        buildCalendar();
+    </script>
+</body>
+</html>
