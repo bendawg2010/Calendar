@@ -584,7 +584,17 @@
         let sortedDay = null; // which day column is currently sorted
 
         // Sort priority: green first, yellow second, red third, then others, unset last
-        const sortPriority = { 'WO': 0, 'PC': 1, 'AL': 2, 'DO': 3, 'OC': 4, 'NCR': 5, 'ICU': 6, 'MISC': 7, '': 99 };
+        function getShiftPriority(code) {
+            if (code === 'WO') return 0;
+            if (code === 'PC') return 1;
+            if (code === 'AL') return 2;
+            if (code === 'DO') return 3;
+            if (code === 'OC') return 4;
+            if (code === 'NCR') return 5;
+            if (code === 'ICU') return 6;
+            if (code === 'MISC') return 7;
+            return 99; // unset or unknown
+        }
 
         // ── Status Bar ───────────────────────────────────────
         function buildStatusBar() {
@@ -625,11 +635,13 @@
             // Sort staff if a day is selected
             let sortedStaff = [...staff];
             if (sortedDay !== null) {
-                const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(sortedDay).padStart(2,'0')}`;
-                sortedStaff.sort((a, b) => {
-                    const aShift = scheduleData[`${a.id}-${dateStr}`] || '';
-                    const bShift = scheduleData[`${b.id}-${dateStr}`] || '';
-                    return (sortPriority[aShift] ?? 50) - (sortPriority[bShift] ?? 50);
+                const sortDateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(sortedDay).padStart(2,'0')}`;
+                sortedStaff.sort(function(a, b) {
+                    var aKey = a.id + '-' + sortDateStr;
+                    var bKey = b.id + '-' + sortDateStr;
+                    var aShift = scheduleData[aKey] || '';
+                    var bShift = scheduleData[bKey] || '';
+                    return getShiftPriority(aShift) - getShiftPriority(bShift);
                 });
             }
 
@@ -702,10 +714,12 @@
 
         function sortByDay(day) {
             if (sortedDay === day) {
-                sortedDay = null; // click again to unsort
+                sortedDay = null;
             } else {
                 sortedDay = day;
             }
+            // Force full rebuild with new sort
+            document.getElementById('calendarBody').innerHTML = '';
             buildCalendar();
         }
 
